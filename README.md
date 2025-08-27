@@ -1,4 +1,4 @@
-# Ping Overlay for macOS - Enhanced Menu Bar Network Monitor
+# Ping Overlay for macOS - Enhanced Menu Bar Network Monitor (with edits by JoeTheMonk)
 
 A powerful and user-friendly macOS menu bar application that provides real-time network latency monitoring with rich statistics and customizable settings.
 
