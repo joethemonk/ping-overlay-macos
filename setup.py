@@ -4,8 +4,12 @@ from setuptools import setup
 APP = ['ping_app.py']
 OPTIONS = {
     'includes': ['rumps', 'ping3'],
+    'iconfile': 'ping_app.icns',
     'plist': {
-        'LSUIElement': True,
+        'CFBundleName': 'Ping Overlay',
+        'CFBundleDisplayName': 'Ping Overlay',
+        'CFBundleIdentifier': 'com.joethemonk.pingoverlay',
+        'CFBundleVersion': '1.0.0',
     },
 }
 

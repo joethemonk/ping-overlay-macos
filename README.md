@@ -1,5 +1,23 @@
 # Ping Overlay for macOS - Enhanced Menu Bar Network Monitor (with edits by JoeTheMonk)
 
+## Key Development Conversations
+
+These Claude/Gemini conversations were instrumental in building this app:
+
+1. **"Rotate Wifi Script (Amtrak)"**  
+   Created a script to rotate wifi between iPhone and Amtrak when each fails. Finished detection part but not rotating part. Won't do latter. Can re-use code.  
+   https://gemini.google.com/app/fe52f9e69b031ac7
+
+2. **"macOS Network Connection Automation Scripts" (8-28-25)**  
+   Picking up from above script where figured out finicky way to detect iPhone and iPad hotspots  
+   https://claude.ai/chat/6352b4fc-cb06-475b-81bc-d0b3a95418d8
+
+3. **"Ping Time Color Monitoring Utility" (8-28-25)**  
+   What led to the creation of this repo!  
+   https://claude.ai/chat/0d7bec5c-61a8-413f-be9d-fb468aa8d4e5
+
+---
+
 A powerful and user-friendly macOS menu bar application that provides real-time network latency monitoring with rich statistics and customizable settings.
 
 ![Menu Bar Demo](https://via.placeholder.com/400x200?text=Ping+Overlay+Demo)

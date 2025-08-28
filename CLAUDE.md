@@ -1,5 +1,23 @@
 # CLAUDE.md
 
+## Key Development Conversations
+
+These Claude/Gemini conversations were instrumental in building this app:
+
+1. **"Rotate Wifi Script (Amtrak)"**  
+   Created a script to rotate wifi between iPhone and Amtrak when each fails. Finished detection part but not rotating part. Won't do latter. Can re-use code.  
+   https://gemini.google.com/app/fe52f9e69b031ac7
+
+2. **"macOS Network Connection Automation Scripts" (8-28-25)**  
+   Picking up from above script where figured out finicky way to detect iPhone and iPad hotspots  
+   https://claude.ai/chat/6352b4fc-cb06-475b-81bc-d0b3a95418d8
+
+3. **"Ping Time Color Monitoring Utility" (8-28-25)**  
+   What led to the creation of this repo!  
+   https://claude.ai/chat/0d7bec5c-61a8-413f-be9d-fb468aa8d4e5
+
+---
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build and Development Commands
@@ -210,3 +228,27 @@ This would make merging upstream changes easier and allow runtime configuration 
 
 ## Purpose
 Replace Eric's terminal-based `pingcolor` utility with a menu bar indicator for passive monitoring during train trips where connection quality is critical for remote work.
+
+## TODO - Future Enhancements
+
+### High Priority
+- **Settings UI**: Add in-app settings dialog to adjust thresholds without rebuilding
+  - Editable threshold values (excellent/good/fair/poor)
+  - "Open at Login" checkbox with LaunchAgent integration
+  - Host selection dropdown/text field
+  - Refresh rate slider/dropdown
+  
+- **Auto-launch on network connection**: Automatically launch this app when connecting to iPad, iPhone, Amtrak WiFi or wired connections, and automatically quit when disconnecting
+  - See conversations: https://gemini.google.com/app/fe52f9e69b031ac7 and https://claude.ai/chat/6352b4fc-cb06-475b-81bc-d0b3a95418d8
+  - Reference file: "WIP_detect_launch_auto_(old_rotate_weak_wifi).sh" in this repo
+  - Implement network change detection and conditional app launching
+  
+### Medium Priority  
+- **Bundle threshold config**: Include `ping_overlay_config.json` in app bundle via setup.py
+- **Better error handling**: Graceful fallbacks when network is completely unavailable
+- **Statistics export**: CSV export of ping history for analysis
+
+### Implementation Notes
+- Current thresholds: 🟢<120ms, 🟡120-249ms, 🟠250-499ms, 🔴500-999ms, ❌≥1000ms
+- App now has dock icon (removed LSUIElement=True from setup.py)
+- Uses two-row display with color indicators and proper font sizing
