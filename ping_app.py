@@ -108,7 +108,7 @@ class PingStatusBarApp(rumps.App):
     
     def create_attributed_title(self, value, unit, status_indicator="●"):
         """Create an attributed string with colored status indicator and different sized fonts for value and unit"""
-        # Create: "value\n[indicator]unit" where indicator changes based on latency
+        # Create: "value\n [indicator] unit" with proper spacing
         
         # Create paragraph style with center alignment
         paragraph_style = NSMutableParagraphStyle.alloc().init()
@@ -133,7 +133,18 @@ class PingStatusBarApp(rumps.App):
         number_str = NSAttributedString.alloc().initWithString_attributes_(value + "\n", number_attributes)
         attr_string.appendAttributedString_(number_str)
         
-        # Second row: status indicator + unit
+        # Second row: properly spaced indicator and unit
+        # Format: " [indicator] unit " for ms, " [indicator]  unit " for s
+        bottom_row_attributes = {
+            NSFontAttributeName: unit_font,
+            NSParagraphStyleAttributeName: paragraph_style,
+            NSBaselineOffsetAttributeName: -4.0
+        }
+        
+        # Add space before indicator
+        space_str = NSAttributedString.alloc().initWithString_attributes_(" ", bottom_row_attributes)
+        attr_string.appendAttributedString_(space_str)
+        
         # Add the indicator (colored dot or X)
         indicator_attributes = {
             NSFontAttributeName: indicator_font,
@@ -143,14 +154,19 @@ class PingStatusBarApp(rumps.App):
         indicator_str = NSAttributedString.alloc().initWithString_attributes_(status_indicator, indicator_attributes)
         attr_string.appendAttributedString_(indicator_str)
         
+        # Add space(s) between indicator and unit
+        # Two spaces for seconds, one space for milliseconds
+        spacing = "  " if unit == "s" else " "
+        spacing_str = NSAttributedString.alloc().initWithString_attributes_(spacing, bottom_row_attributes)
+        attr_string.appendAttributedString_(spacing_str)
+        
         # Add the unit
-        unit_attributes = {
-            NSFontAttributeName: unit_font,
-            NSParagraphStyleAttributeName: paragraph_style,
-            NSBaselineOffsetAttributeName: -4.0
-        }
-        unit_str = NSAttributedString.alloc().initWithString_attributes_(unit, unit_attributes)
+        unit_str = NSAttributedString.alloc().initWithString_attributes_(unit, bottom_row_attributes)
         attr_string.appendAttributedString_(unit_str)
+        
+        # Add space after unit
+        trailing_space = NSAttributedString.alloc().initWithString_attributes_(" ", bottom_row_attributes)
+        attr_string.appendAttributedString_(trailing_space)
         
         return attr_string
 
@@ -278,12 +294,17 @@ class PingStatusBarApp(rumps.App):
             elif ms < THRESHOLDS["poor"]:
                 indicator = "🔴"
             else:
-                indicator = "❌"  # Red X emoji for >= 1000ms
+                indicator = "❌"  # Red X emoji for >= poor threshold
             
-            # Switch to seconds display if >= 1000ms
-            if ms >= 1000:
+            # Handle different display modes based on latency
+            if ms >= 3000:
+                # Over 3 seconds: just show the X with no numbers
+                if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
+                    self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title("", "", indicator))
+            elif ms >= THRESHOLDS["poor"]:
+                # Between poor threshold and 3 seconds: show in seconds format with X
                 seconds = ms / 1000.0
-                # Format with 1 decimal place (e.g., "1.2")
+                # Format with 1 decimal place (e.g., "1.2", "2.5")
                 value = f"{seconds:.1f}"
                 # Pad to ensure minimum width for 3 characters
                 if len(value) < 3:
@@ -291,7 +312,7 @@ class PingStatusBarApp(rumps.App):
                     value = padding + value
                 # Set attributed title directly on the NSStatusItem
                 if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
-                    self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title(value, " s ", indicator))
+                    self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title(value, "s", indicator))
             else:
                 # Show milliseconds without padding - just center naturally
                 value = str(ms)
