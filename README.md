@@ -1,5 +1,7 @@
 # Ping Overlay for macOS - Enhanced Menu Bar Network Monitor (with edits by JoeTheMonk)
 
+## Modified heavily to have nicer menu bar UI/UX 8-28-25
+
 ## Key Development Conversations
 
 These Claude/Gemini conversations were instrumental in building this app:
