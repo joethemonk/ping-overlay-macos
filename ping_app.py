@@ -6,9 +6,20 @@ from ping3 import ping
 import json
 import os
 from datetime import datetime, timedelta
+from Foundation import NSAttributedString, NSMutableAttributedString, NSMutableParagraphStyle
+from AppKit import NSFont, NSFontAttributeName, NSParagraphStyleAttributeName, NSCenterTextAlignment, NSBaselineOffsetAttributeName
 
-# Configuration file path
+# Configuration file paths
 CONFIG_FILE = os.path.expanduser("~/.ping_overlay_config.json")
+THRESHOLDS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ping_overlay_thresholds.json")
+
+# Default thresholds (fallback if config file doesn't exist)
+DEFAULT_THRESHOLDS = {
+    "excellent": 120,
+    "good": 250,
+    "fair": 500,
+    "poor": 1000
+}
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -20,15 +31,42 @@ DEFAULT_CONFIG = {
     "alert_threshold": 500
 }
 
+# Load thresholds from file or use defaults
+def load_thresholds():
+    """Load thresholds from config file or use defaults"""
+    # First try ping_overlay_config.json with thresholds key
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ping_overlay_config.json")
+    try:
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                data = json.load(f)
+                if "thresholds" in data:
+                    return data["thresholds"]
+    except Exception as e:
+        print(f"Error loading ping_overlay_config.json: {e}")
+    
+    # Then try ping_overlay_thresholds.json 
+    try:
+        if os.path.exists(THRESHOLDS_FILE):
+            with open(THRESHOLDS_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading thresholds: {e}, using defaults")
+    
+    return DEFAULT_THRESHOLDS.copy()
+
+# Load thresholds at module level so they're available to all instances
+THRESHOLDS = load_thresholds()
+
 class PingStatusBarApp(rumps.App):
     def __init__(self):
         super(PingStatusBarApp, self).__init__("PingOverlay", icon=None, quit_button=None)
-
+        
         # Load configuration
         self.config = self.load_config()
 
         # Initialize state
-        self.title = "⏳ Starting..."
+        self.title = "..."
         self.is_paused = False
         self.ping_history = []
         self.max_history = 100
@@ -42,7 +80,7 @@ class PingStatusBarApp(rumps.App):
         self.start_monitoring()
 
         # Perform first ping immediately
-        self.title = "⏳ Pinging..."
+        self.title = "..."
         self.update_ping(None)
 
     def load_config(self):
@@ -67,6 +105,42 @@ class PingStatusBarApp(rumps.App):
                 json.dump(self.config, f, indent=2)
         except Exception as e:
             print(f"Error saving config: {e}")
+    
+    def create_attributed_title(self, value, unit):
+        """Create an attributed string with different sized fonts for value and unit"""
+        # Create paragraph style for center alignment with very tight line spacing
+        paragraph_style = NSMutableParagraphStyle.alloc().init()
+        paragraph_style.setAlignment_(NSCenterTextAlignment)
+        paragraph_style.setLineSpacing_(-8.0)  # Much tighter line spacing to bring lines together
+        paragraph_style.setMaximumLineHeight_(8.0)  # Constrain line height
+        
+        # Create mutable attributed string
+        attr_string = NSMutableAttributedString.alloc().init()
+        
+        # Font for the number (larger)
+        number_font = NSFont.systemFontOfSize_(12.0)
+        # Font for the unit (smaller)
+        unit_font = NSFont.systemFontOfSize_(8.0)  # Smaller than before
+        
+        # Add the number with larger font
+        number_attributes = {
+            NSFontAttributeName: number_font,
+            NSParagraphStyleAttributeName: paragraph_style,
+            NSBaselineOffsetAttributeName: -6.0  # Push down much more to get close to unit
+        }
+        number_str = NSAttributedString.alloc().initWithString_attributes_(value + "\n", number_attributes)
+        attr_string.appendAttributedString_(number_str)
+        
+        # Add the unit with smaller font
+        unit_attributes = {
+            NSFontAttributeName: unit_font,
+            NSParagraphStyleAttributeName: paragraph_style,
+            NSBaselineOffsetAttributeName: -4.0  # Push down for bottom alignment
+        }
+        unit_str = NSAttributedString.alloc().initWithString_attributes_(unit, unit_attributes)
+        attr_string.appendAttributedString_(unit_str)
+        
+        return attr_string
 
     def setup_menu(self):
         """Setup the application menu"""
@@ -166,25 +240,32 @@ class PingStatusBarApp(rumps.App):
         current_time = datetime.now()
 
         if error:
-            self.title = "❌ Error"
+            self._title = self.create_attributed_title("Err", "")
             self.status_item.title = f"Status: Error - {error[:50]}"
             self.ping_history.append({"time": current_time, "latency": None, "error": error})
         elif latency is None:
-            self.title = "🔴 Timeout"
+            self._title = self.create_attributed_title("T/O", "")
             self.status_item.title = f"Status: Timeout to {self.config['host']}"
             self.ping_history.append({"time": current_time, "latency": None, "timeout": True})
         else:
             ms = round(latency)
 
-            # Update title with status and latency
-            if ms < 50:
-                self.title = f"🟢 {ms}ms"
-            elif ms < 100:
-                self.title = f"🟡 {ms}ms"
-            elif ms < 200:
-                self.title = f"🟠 {ms}ms"
+            # Update title with latency in two rows (number on top, unit below)
+            # Using different font sizes for value and unit
+            # Switch to seconds display if >= 1000ms
+            if ms >= 1000:
+                seconds = ms / 1000.0
+                # Format with 1 decimal place (e.g., "1.2")
+                value = f"{seconds:.1f}"
+                # Pad to ensure minimum width for 3 characters
+                if len(value) < 3:
+                    padding = " " * (3 - len(value))
+                    value = padding + value
+                self._title = self.create_attributed_title(value, " s ")  # Add spaces around unit
             else:
-                self.title = f"🔴 {ms}ms"
+                # Show milliseconds without padding - just center naturally
+                value = str(ms)
+                self._title = self.create_attributed_title(value, "ms")
 
             self.status_item.title = f"Status: {ms}ms to {self.config['host']}"
             self.ping_history.append({"time": current_time, "latency": ms})
@@ -230,11 +311,11 @@ class PingStatusBarApp(rumps.App):
         self.is_paused = not self.is_paused
         if self.is_paused:
             self.pause_item.title = "Resume"
-            self.title = "⏸️ Paused"
+            self.title = "Paused"
             self.status_item.title = "Status: Paused"
         else:
             self.pause_item.title = "Pause"
-            self.title = "▶️ Resuming..."
+            self.title = "Resuming..."
             # Trigger an immediate ping when resuming
             self.update_ping(None)
 
@@ -253,7 +334,7 @@ class PingStatusBarApp(rumps.App):
         self.config["host"] = host
         self.save_config()
         self.reset_stats(None)
-        self.title = "⏳ Switching..."
+        self.title = "Switching..."
 
     def set_custom_host(self, sender):
         """Set custom host via dialog"""
@@ -312,6 +393,12 @@ class PingStatusBarApp(rumps.App):
                    f"Current target: {self.config['host']}\n"
                    f"Refresh rate: {self.config['refresh_rate']} seconds\n"
                    f"Timeout: {self.config['timeout']} seconds\n\n"
+                   f"Thresholds:\n"
+                   f"  🟢 Excellent: <{THRESHOLDS['excellent']}ms\n"
+                   f"  🟡 Good: {THRESHOLDS['excellent']}-{THRESHOLDS['good']-1}ms\n"
+                   f"  🟠 Fair: {THRESHOLDS['good']}-{THRESHOLDS['fair']-1}ms\n"
+                   f"  🔴 Poor: {THRESHOLDS['fair']}-{THRESHOLDS['poor']-1}ms\n"
+                   f"  ❌ Timeout: ≥{THRESHOLDS['poor']}ms\n\n"
                    "© 2024 Ping Overlay App"
         )
 

@@ -1,0 +1,8 @@
+{
+  "thresholds": {
+    "excellent": 120,
+    "good": 250,
+    "fair": 500,
+    "poor": 1000
+  }
+}
