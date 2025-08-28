@@ -35,6 +35,8 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nAdd colored status indicators and fix dynamic updates\n\n- Add colored emoji indicators (🟢🟡🟠🔴❌) based on latency thresholds\n- Place indicators on bottom row next to units for clean visual feedback\n- Fix ping updates by using NSStatusItem.setAttributedTitle_() method\n- Smaller indicator font (7pt) for better proportions\n- Properly handle NSAttributedString updates in rumps framework\n- Indicators change color dynamically: green (<120ms), yellow (120-249ms), \n  orange (250-499ms), red (500-999ms), X (≥1000ms or timeout)\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(cd:*)",
       "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
       "Bash(cd:*)"
     ],
     "deny": [],

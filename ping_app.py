@@ -5,9 +5,10 @@ import socket
 from ping3 import ping
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from Foundation import NSAttributedString, NSMutableAttributedString, NSMutableParagraphStyle
-from AppKit import NSFont, NSFontAttributeName, NSParagraphStyleAttributeName, NSCenterTextAlignment, NSBaselineOffsetAttributeName
+from AppKit import NSFont, NSFontAttributeName, NSParagraphStyleAttributeName, NSCenterTextAlignment, NSBaselineOffsetAttributeName, NSColor, NSForegroundColorAttributeName
 
 # Configuration file paths
 CONFIG_FILE = os.path.expanduser("~/.ping_overlay_config.json")
@@ -59,11 +60,17 @@ def load_thresholds():
 THRESHOLDS = load_thresholds()
 
 class PingStatusBarApp(rumps.App):
-    def __init__(self):
+    def __init__(self, test_mode=False, test_increment=50):
         super(PingStatusBarApp, self).__init__("PingOverlay", icon=None, quit_button=None)
         
         # Load configuration
         self.config = self.load_config()
+        
+        # Test mode settings
+        self.test_mode = test_mode
+        self.test_increment = test_increment
+        self.test_current_ms = 0
+        self.test_max_ms = THRESHOLDS["poor"] + 1000  # Reset after poor threshold + 1000ms
 
         # Initialize state
         self.title = "..."
@@ -124,12 +131,19 @@ class PingStatusBarApp(rumps.App):
         unit_font = NSFont.systemFontOfSize_(8.0)
         indicator_font = NSFont.systemFontOfSize_(7.0)  # Even smaller indicator for bottom row
         
+        # Determine if we should use red color (when X indicator is shown)
+        use_red_text = (status_indicator == "❌")
+        text_color = NSColor.redColor() if use_red_text else None
+        
         # First row: just the number
         number_attributes = {
             NSFontAttributeName: number_font,
             NSParagraphStyleAttributeName: paragraph_style,
             NSBaselineOffsetAttributeName: -6.0
         }
+        if text_color:
+            number_attributes[NSForegroundColorAttributeName] = text_color
+        
         number_str = NSAttributedString.alloc().initWithString_attributes_(value + "\n", number_attributes)
         attr_string.appendAttributedString_(number_str)
         
@@ -140,12 +154,14 @@ class PingStatusBarApp(rumps.App):
             NSParagraphStyleAttributeName: paragraph_style,
             NSBaselineOffsetAttributeName: -4.0
         }
+        if text_color:
+            bottom_row_attributes[NSForegroundColorAttributeName] = text_color
         
         # Add space before indicator
         space_str = NSAttributedString.alloc().initWithString_attributes_(" ", bottom_row_attributes)
         attr_string.appendAttributedString_(space_str)
         
-        # Add the indicator (colored dot or X)
+        # Add the indicator (colored dot or X) - indicator keeps its emoji color
         indicator_attributes = {
             NSFontAttributeName: indicator_font,
             NSParagraphStyleAttributeName: paragraph_style,
@@ -160,7 +176,7 @@ class PingStatusBarApp(rumps.App):
         spacing_str = NSAttributedString.alloc().initWithString_attributes_(spacing, bottom_row_attributes)
         attr_string.appendAttributedString_(spacing_str)
         
-        # Add the unit
+        # Add the unit with red color if needed
         unit_str = NSAttributedString.alloc().initWithString_attributes_(unit, bottom_row_attributes)
         attr_string.appendAttributedString_(unit_str)
         
@@ -254,12 +270,21 @@ class PingStatusBarApp(rumps.App):
         if self.is_paused:
             return
 
-        # Perform ping directly - rumps handles threading
-        try:
-            latency = ping(self.config["host"], timeout=self.config["timeout"], unit='ms')
+        if self.test_mode:
+            # In test mode, use simulated incrementing latency
+            latency = self.test_current_ms
+            self.test_current_ms += self.test_increment
+            # Reset to 0 after reaching max
+            if self.test_current_ms > self.test_max_ms:
+                self.test_current_ms = 0
             self._update_ui(latency)
-        except Exception as e:
-            self._update_ui(None, str(e))
+        else:
+            # Perform ping directly - rumps handles threading
+            try:
+                latency = ping(self.config["host"], timeout=self.config["timeout"], unit='ms')
+                self._update_ui(latency)
+            except Exception as e:
+                self._update_ui(None, str(e))
 
 
 
@@ -467,12 +492,28 @@ if __name__ == "__main__":
         import rumps
         from ping3 import ping
 
-        # Test ping capability
-        test_ping = ping("8.8.8.8", timeout=1)
-        if test_ping is None:
-            print("Warning: Ping test failed. App may need elevated privileges on some systems.")
+        # Parse command-line arguments
+        test_mode = False
+        test_increment = 50  # Default increment
+        
+        if len(sys.argv) > 1 and sys.argv[1] == "--test":
+            test_mode = True
+            if len(sys.argv) > 2:
+                try:
+                    test_increment = int(sys.argv[2])
+                    print(f"Test mode enabled with {test_increment}ms increments")
+                except ValueError:
+                    print(f"Invalid increment value: {sys.argv[2]}. Using default 50ms.")
+            else:
+                print("Test mode enabled with default 50ms increments")
+        
+        # Only test actual ping capability if not in test mode
+        if not test_mode:
+            test_ping = ping("8.8.8.8", timeout=1)
+            if test_ping is None:
+                print("Warning: Ping test failed. App may need elevated privileges on some systems.")
 
-        app = PingStatusBarApp()
+        app = PingStatusBarApp(test_mode=test_mode, test_increment=test_increment)
         app.run()
 
     except ImportError as e:
