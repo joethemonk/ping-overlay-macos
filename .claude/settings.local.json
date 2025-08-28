@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/Users/eshashoua/Documents/Screenshots/**)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Read(/tmp/**)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nImplement configurable thresholds and compact two-row display\n\n- Add support for external threshold configuration via JSON files\n- Redesign menu bar display with two-row layout (value over unit)\n- Use larger font for numbers (12pt) and smaller for units (8pt)\n- Implement proper text centering with NSCenterTextAlignment\n- Add automatic unit switching (ms to s) for values ≥1000ms\n- Customize thresholds for train WiFi monitoring (120/250/500/1000ms)\n- Remove emoji indicators for cleaner, iStat Menus-style display\n- Bottom-align text with tighter line spacing for compact appearance\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push origin main)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -106,36 +106,48 @@ class PingStatusBarApp(rumps.App):
         except Exception as e:
             print(f"Error saving config: {e}")
     
-    def create_attributed_title(self, value, unit):
-        """Create an attributed string with different sized fonts for value and unit"""
-        # Create paragraph style for center alignment with very tight line spacing
+    def create_attributed_title(self, value, unit, status_indicator="●"):
+        """Create an attributed string with colored status indicator and different sized fonts for value and unit"""
+        # Create: "value\n[indicator]unit" where indicator changes based on latency
+        
+        # Create paragraph style with center alignment
         paragraph_style = NSMutableParagraphStyle.alloc().init()
         paragraph_style.setAlignment_(NSCenterTextAlignment)
-        paragraph_style.setLineSpacing_(-8.0)  # Much tighter line spacing to bring lines together
-        paragraph_style.setMaximumLineHeight_(8.0)  # Constrain line height
+        paragraph_style.setLineSpacing_(-8.0)  # Tight line spacing
+        paragraph_style.setMaximumLineHeight_(8.0)
         
         # Create mutable attributed string
         attr_string = NSMutableAttributedString.alloc().init()
         
-        # Font for the number (larger)
+        # Font sizes
         number_font = NSFont.systemFontOfSize_(12.0)
-        # Font for the unit (smaller)
-        unit_font = NSFont.systemFontOfSize_(8.0)  # Smaller than before
+        unit_font = NSFont.systemFontOfSize_(8.0)
+        indicator_font = NSFont.systemFontOfSize_(7.0)  # Even smaller indicator for bottom row
         
-        # Add the number with larger font
+        # First row: just the number
         number_attributes = {
             NSFontAttributeName: number_font,
             NSParagraphStyleAttributeName: paragraph_style,
-            NSBaselineOffsetAttributeName: -6.0  # Push down much more to get close to unit
+            NSBaselineOffsetAttributeName: -6.0
         }
         number_str = NSAttributedString.alloc().initWithString_attributes_(value + "\n", number_attributes)
         attr_string.appendAttributedString_(number_str)
         
-        # Add the unit with smaller font
+        # Second row: status indicator + unit
+        # Add the indicator (colored dot or X)
+        indicator_attributes = {
+            NSFontAttributeName: indicator_font,
+            NSParagraphStyleAttributeName: paragraph_style,
+            NSBaselineOffsetAttributeName: -4.0
+        }
+        indicator_str = NSAttributedString.alloc().initWithString_attributes_(status_indicator, indicator_attributes)
+        attr_string.appendAttributedString_(indicator_str)
+        
+        # Add the unit
         unit_attributes = {
             NSFontAttributeName: unit_font,
             NSParagraphStyleAttributeName: paragraph_style,
-            NSBaselineOffsetAttributeName: -4.0  # Push down for bottom alignment
+            NSBaselineOffsetAttributeName: -4.0
         }
         unit_str = NSAttributedString.alloc().initWithString_attributes_(unit, unit_attributes)
         attr_string.appendAttributedString_(unit_str)
@@ -240,11 +252,15 @@ class PingStatusBarApp(rumps.App):
         current_time = datetime.now()
 
         if error:
-            self._title = self.create_attributed_title("Err", "")
+            # Set attributed title directly on the NSStatusItem
+            if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
+                self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title("Err", "", "❌"))
             self.status_item.title = f"Status: Error - {error[:50]}"
             self.ping_history.append({"time": current_time, "latency": None, "error": error})
         elif latency is None:
-            self._title = self.create_attributed_title("T/O", "")
+            # Set attributed title directly on the NSStatusItem
+            if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
+                self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title("T/O", "", "❌"))
             self.status_item.title = f"Status: Timeout to {self.config['host']}"
             self.ping_history.append({"time": current_time, "latency": None, "timeout": True})
         else:
@@ -252,6 +268,18 @@ class PingStatusBarApp(rumps.App):
 
             # Update title with latency in two rows (number on top, unit below)
             # Using different font sizes for value and unit
+            # Determine status indicator color based on thresholds
+            if ms < THRESHOLDS["excellent"]:
+                indicator = "🟢"
+            elif ms < THRESHOLDS["good"]:
+                indicator = "🟡"
+            elif ms < THRESHOLDS["fair"]:
+                indicator = "🟠"
+            elif ms < THRESHOLDS["poor"]:
+                indicator = "🔴"
+            else:
+                indicator = "❌"  # Red X emoji for >= 1000ms
+            
             # Switch to seconds display if >= 1000ms
             if ms >= 1000:
                 seconds = ms / 1000.0
@@ -261,11 +289,15 @@ class PingStatusBarApp(rumps.App):
                 if len(value) < 3:
                     padding = " " * (3 - len(value))
                     value = padding + value
-                self._title = self.create_attributed_title(value, " s ")  # Add spaces around unit
+                # Set attributed title directly on the NSStatusItem
+                if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
+                    self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title(value, " s ", indicator))
             else:
                 # Show milliseconds without padding - just center naturally
                 value = str(ms)
-                self._title = self.create_attributed_title(value, "ms")
+                # Set attributed title directly on the NSStatusItem
+                if hasattr(self, '_nsapp') and hasattr(self._nsapp, 'nsstatusitem'):
+                    self._nsapp.nsstatusitem.setAttributedTitle_(self.create_attributed_title(value, "ms", indicator))
 
             self.status_item.title = f"Status: {ms}ms to {self.config['host']}"
             self.ping_history.append({"time": current_time, "latency": ms})
